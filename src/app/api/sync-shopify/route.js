@@ -67,6 +67,7 @@ export async function POST() {
                     material_type: metafield(namespace: "ornaverse", key: "material_type") { value }
                     finishing: metafield(namespace: "custom", key: "finishing") { value }
                     fit: metafield(namespace: "custom", key: "fit") { value }
+                    matching_products: metafield(namespace: "custom", key: "matching_product") { value }
                     variants(first: 200) {
                       edges {
                         node {
@@ -139,7 +140,17 @@ export async function POST() {
                 .map(m => ({ url: m.node.image.url, alt: m.node.image.altText || "" }));
 
               const firstVar = variants[0];
-              const reviews = await fetchNectorReviews(p.id);
+              const reviewsData = await fetchNectorReviews(p.id);
+
+              let matchingIds = [];
+              if (p.matching_products?.value) {
+                try {
+                  const parsed = JSON.parse(p.matching_products.value);
+                  matchingIds = Array.isArray(parsed) ? parsed : [parsed];
+                } catch {
+                  matchingIds = [p.matching_products.value];
+                }
+              }
 
               return {
                 id: p.id.split("/").pop(),
@@ -159,8 +170,9 @@ export async function POST() {
                 selectedColor: firstVar?.color,
                 colors: [...new Set(variants.map(v => v.color).filter(Boolean))],
                 variants: variants,
-                reviews: reviews.list.length > 0 ? reviews : null,
+                reviews: reviewsData.count > 0 ? reviewsData : null,
                 collectionHandles: p.collections.edges.map(e => e.node.handle),
+                matchingProductIds: matchingIds,
                 productMetafields: {
                   shop_for: p.shop_for?.value,
                   weight: p.weight?.value,

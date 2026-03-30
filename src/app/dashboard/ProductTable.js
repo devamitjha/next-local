@@ -5,9 +5,31 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, RefreshCw, Star } from "lucide-react";
+import { useState } from "react";
 
 export default function ProductTable({ data, pagination, onPageChange }) {
+  const [syncingIds, setSyncingIds] = useState(new Set());
+
+  const syncReviews = async (productId, shopifyId) => {
+    setSyncingIds(prev => new Set(prev).add(productId));
+    try {
+      const res = await fetch(`/api/reviews?productId=${shopifyId}`);
+      if (res.ok) {
+        // Optionally refresh the current page data
+        onPageChange(pagination.page);
+      }
+    } catch (e) {
+      console.error("Failed to sync reviews", e);
+    } finally {
+      setSyncingIds(prev => {
+        const next = new Set(prev);
+        next.delete(productId);
+        return next;
+      });
+    }
+  };
+
   const columns = [
     {
       accessorKey: "images",
@@ -33,8 +55,28 @@ export default function ProductTable({ data, pagination, onPageChange }) {
       ),
     },
     {
-      accessorKey: "type",
-      header: "Category",
+      accessorKey: "reviews",
+      header: "Reviews",
+      cell: ({ row }) => {
+        const reviews = row.original.reviews;
+        return (
+          <div className="flex items-center gap-2">
+            <div className="flex items-center text-amber-500">
+              <Star size={14} fill={reviews?.average ? "currentColor" : "none"} />
+              <span className="ml-1 text-sm font-medium">{reviews?.average || 0}</span>
+            </div>
+            <span className="text-xs text-zinc-400">({reviews?.count || 0})</span>
+            <button
+              onClick={() => syncReviews(row.original.id, row.original.shopifyId)}
+              disabled={syncingIds.has(row.original.id)}
+              className={`p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors ${syncingIds.has(row.original.id) ? 'animate-spin' : ''}`}
+              title="Sync Reviews"
+            >
+              <RefreshCw size={14} className="text-zinc-400" />
+            </button>
+          </div>
+        );
+      },
     },
     {
       accessorKey: "variants",
@@ -48,14 +90,16 @@ export default function ProductTable({ data, pagination, onPageChange }) {
     {
       accessorKey: "handle",
       header: "View",
-      cell: ({ getValue }) => (
-        <a
-          href={`/products/${getValue()}`}
-          className="p-2 hover:bg-zinc-100 rounded-lg inline-block transition-colors"
-          title="View Product Details"
-        >
-          <ExternalLink size={16} className="text-zinc-400" />
-        </a>
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <a
+            href={`/products/${row.original.handle}`}
+            className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg inline-block transition-colors"
+            title="View Product Details"
+          >
+            <ExternalLink size={16} className="text-zinc-400" />
+          </a>
+        </div>
       ),
     },
   ];

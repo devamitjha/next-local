@@ -22,10 +22,19 @@ export const fetchNectorReviews = async (productId) => {
     );
 
     const json = await res.json();
-    const data = json?.data || {};
+    if (!res.ok) {
+      console.error(`Nector API Error for ${id}:`, res.status, json);
+      return { count: 0, average: 0, list: [], stats: [] };
+    }
+
+    const data = json?.data || json || {};
     const stats = data.stats || [];
     const count = data.count || 0;
     const reviewsList = data.reviews || [];
+
+    if (reviewsList.length === 0 && count > 0) {
+      console.warn(`Nector: count is ${count} but reviews list is empty for ${id}. Check structure:`, JSON.stringify(json).substring(0, 200));
+    }
 
     let total = 0;
     let ratingCount = 0;

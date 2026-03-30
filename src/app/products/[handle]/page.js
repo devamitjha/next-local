@@ -1,8 +1,7 @@
 import clientPromise from "@/lib/mongodb";
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, Info, Tag, Package } from "lucide-react";
+import { ChevronLeft, Info, Package, Star, MessageSquare } from "lucide-react";
 
 async function getProduct(handle) {
   const client = await clientPromise;
@@ -23,10 +22,10 @@ export default async function ProductPage({ params }) {
     <div className="min-h-screen bg-zinc-50 dark:bg-black p-6 sm:p-10 font-sans">
       <div className="max-w-5xl mx-auto space-y-8">
         <Link 
-          href="/dashboard" 
+          href="/collections/all" 
           className="inline-flex items-center gap-2 text-zinc-500 hover:text-black dark:hover:text-white transition-colors"
         >
-          <ChevronLeft size={20} /> Back to Dashboard
+          <ChevronLeft size={20} /> Back to Collections
         </Link>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
@@ -62,6 +61,25 @@ export default async function ProductPage({ params }) {
               <h1 className="text-4xl font-black tracking-tighter text-zinc-900 dark:text-white leading-none">
                 {product.title}
               </h1>
+              
+              {product.reviews?.count > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="flex text-amber-400">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        size={18}
+                        fill={i < Math.floor(product.reviews.average) ? "currentColor" : "none"}
+                        className={i < Math.floor(product.reviews.average) ? "" : "text-zinc-200 dark:text-zinc-800"}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm font-bold text-zinc-500">
+                    {product.reviews.average} ({product.reviews.count} reviews)
+                  </span>
+                </div>
+              )}
+
               <p className="text-xl font-medium text-zinc-500">{product.type}</p>
             </div>
 
@@ -85,16 +103,16 @@ export default async function ProductPage({ params }) {
                   <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                     {product.variants?.map((v) => (
                       <tr key={v.id}>
-                        <td className="px-4 py-3 font-medium">{v.title}</td>
+                        <td className="px-4 py-3 font-medium">{v.title || v.size || v.color}</td>
                         <td className="px-4 py-3">
                           <div className="flex flex-col">
                             <span className="font-bold">₹{v.price}</span>
-                            {v.compareAtPrice && (
-                              <span className="text-xs text-zinc-400 line-through">₹{v.compareAtPrice}</span>
+                            {v.compare_price && (
+                              <span className="text-xs text-zinc-400 line-through">₹{v.compare_price}</span>
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-right tabular-nums">{v.inventory}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{v.inventory !== undefined ? v.inventory : (v.inStock ? "In Stock" : "Out of Stock")}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -103,18 +121,56 @@ export default async function ProductPage({ params }) {
             </div>
 
             {/* Metafields */}
-            {product.metafields?.filter(mf => !mf.value.trim().startsWith("<") && mf.namespace !== "judgeme").length > 0 && (
+            {product.productMetafields && Object.values(product.productMetafields).some(v => v) && (
               <div className="space-y-4">
                 <h3 className="text-lg font-bold flex items-center gap-2">
                   <Info size={20} /> Specifications
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {product.metafields
-                    .filter(mf => !mf.value.trim().startsWith("<") && mf.namespace !== "judgeme")
-                    .map((mf, i) => (
+                  {Object.entries(product.productMetafields).map(([key, value], i) => value && (
                     <div key={i} className="p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800">
-                      <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest">{mf.key.replace(/_/g, " ")}</p>
-                      <p className="text-sm mt-1 text-zinc-900 dark:text-zinc-100">{mf.value}</p>
+                      <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest">{key.replace(/_/g, " ")}</p>
+                      <p className="text-sm mt-1 text-zinc-900 dark:text-zinc-100">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Reviews List */}
+            {product.reviews?.list?.length > 0 && (
+              <div className="space-y-6 pt-8 border-t border-zinc-200 dark:border-zinc-800">
+                <h3 className="text-lg font-bold flex items-center gap-2">
+                  <MessageSquare size={20} /> Customer Reviews
+                </h3>
+                <div className="space-y-6">
+                  {product.reviews.list.map((review) => (
+                    <div key={review.id} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="flex text-amber-400">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                size={14}
+                                fill={i < review.rating ? "currentColor" : "none"}
+                                className={i < review.rating ? "" : "text-zinc-200 dark:text-zinc-800"}
+                              />
+                            ))}
+                          </div>
+                          <span className="font-bold text-sm">{review.name}</span>
+                        </div>
+                        <span className="text-xs text-zinc-400">{new Date(review.date).toLocaleDateString()}</span>
+                      </div>
+                      {review.title && <h4 className="font-bold text-sm">{review.title}</h4>}
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">{review.text}</p>
+                      {review.images?.length > 0 && (
+                        <div className="flex gap-2 pt-2">
+                          {review.images.map((img, idx) => (
+                            <img key={idx} src={img} alt="Review" className="w-16 h-16 object-cover rounded-lg border border-zinc-100 dark:border-zinc-800" />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
