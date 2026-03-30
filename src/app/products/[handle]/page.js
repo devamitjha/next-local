@@ -17,6 +17,26 @@ async function getProduct(handle) {
   return product;
 }
 
+async function getComplementaryProducts(product) {
+  if (!product.complementaryProductIds || product.complementaryProductIds.length === 0) {
+    return [];
+  }
+
+  const client = await clientPromise;
+  const db = client.db("next_local_db");
+  
+  // Search by shopifyId (full GID) as it's most likely what's stored in the metafield
+  const complementaryProducts = await db.collection("products")
+    .find({ shopifyId: { $in: product.complementaryProductIds } })
+    .toArray();
+
+  return complementaryProducts.map(p => {
+    p._id = p._id.toString();
+    if (p.lastUpdated instanceof Date) p.lastUpdated = p.lastUpdated.toISOString();
+    if (p.createdAt instanceof Date) p.createdAt = p.createdAt.toISOString();
+    return p;
+  });
+}
 
 export default async function ProductPage({ params }) {
   const { handle } = await params;
@@ -26,5 +46,8 @@ export default async function ProductPage({ params }) {
     notFound();
   }
 
-  return <ProductPageClient product={product} />;
+  const complementaryProducts = await getComplementaryProducts(product);
+
+  return <ProductPageClient product={product} complementaryProducts={complementaryProducts} />;
 }
+

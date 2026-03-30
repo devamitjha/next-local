@@ -68,6 +68,7 @@ export async function POST() {
                     finishing: metafield(namespace: "custom", key: "finishing") { value }
                     fit: metafield(namespace: "custom", key: "fit") { value }
                     matching_products: metafield(namespace: "custom", key: "matching_product") { value }
+                    complementary_products: metafield(namespace: "shopify--discovery--product_recommendation", key: "complementary_products") { value }
                     variants(first: 200) {
                       edges {
                         node {
@@ -212,6 +213,15 @@ export async function POST() {
                 reviews: reviewsData.count > 0 ? reviewsData : null,
                 collectionHandles: p.collections.edges.map(e => e.node.handle),
                 matchingProductIds: matchingIds,
+                complementaryProductIds: (() => {
+                  if (!p.complementary_products?.value) return [];
+                  try {
+                    const parsed = JSON.parse(p.complementary_products.value);
+                    return Array.isArray(parsed) ? parsed : [parsed];
+                  } catch {
+                    return [p.complementary_products.value];
+                  }
+                })(),
                 productMetafields: {
                   shop_for: p.shop_for?.value,
                   weight: p.weight?.value,

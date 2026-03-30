@@ -52,7 +52,7 @@ const formatPrice = (num) => {
   return new Intl.NumberFormat("en-IN").format(num);
 };
 
-export default function ProductPageClient({ product }) {
+export default function ProductPageClient({ product, complementaryProducts = [] }) {
   const [engraving, setEngraving] = useState("");
   const [activePromoSlide, setActivePromoSlide] = useState(1);
   const [showSimilar, setShowSimilar] = useState(false);
@@ -325,51 +325,56 @@ export default function ProductPageClient({ product }) {
               </div>
 
               {/* Ring Size */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="font-semibold text-base">Select Ring Size: <span className="font-medium ml-1">{selectedSize} IND</span></span>
-                  <button className="text-sm font-medium underline underline-offset-4 decoration-gray-300">Size Guide</button>
-                </div>
-                
-                <div className="bg-[#F8F9FA] rounded-lg flex items-center gap-4 px-4 py-2.5 border border-gray-100">
-                  <div className="bg-white rounded-lg p-2 shadow-sm">
-                    <Play size={16} fill="black" />
+                <div className="space-y-4">
+              {availableSizes.length > 0 && availableSizes[0] !== null && availableSizes[0] !== undefined && (
+                <>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="font-semibold text-base">Select Ring Size: <span className="font-medium ml-1">{selectedSize} IND</span></span>
+                    <button className="text-sm font-medium underline underline-offset-4 decoration-gray-300">Size Guide</button>
                   </div>
-                  <span className="text-base text-black">Watch this quick video to measure your ring right.</span>
-                </div>
+                  
+                  <div className="bg-[#F8F9FA] rounded-lg flex items-center gap-4 px-4 py-2.5 border border-gray-100">
+                    <div className="bg-white rounded-lg p-2 shadow-sm">
+                      <Play size={16} fill="black" />
+                    </div>
+                    <span className="text-base text-black">Watch this quick video to measure your ring right.</span>
+                  </div>
 
-                <div className="grid grid-cols-7 gap-4">
-                  {availableSizes.map(sizeStr => {
-                    const inStock = isSizeInStock(sizeStr);
-                    return (
-                      <button
-                        key={sizeStr}
-                        onClick={() => handleSizeSelection(sizeStr)}
-                        className={`relative border rounded-md h-10 flex items-center justify-center text-base transition-all ${
-                          sizeStr === selectedSize
-                            ? "border-primary bg-white ring-1 ring-primary font-bold"
-                            : "border-gray-200 hover:border-primary font-normal"
-                        }`}
-                      >
-                        {sizeStr}
-                        {inStock && <span className="absolute top-1 left-1 w-1.5 h-1.5 bg-[#2DB36F] rounded-full"></span>}
-                      </button>
-                    );
-                  })}
+                  <div className="grid grid-cols-7 gap-4">
+                    {availableSizes.map(sizeStr => {
+                      const inStock = isSizeInStock(sizeStr);
+                      return (
+                        <button
+                          key={sizeStr}
+                          onClick={() => handleSizeSelection(sizeStr)}
+                          className={`relative border rounded-md h-10 flex items-center justify-center text-base transition-all ${
+                            sizeStr === selectedSize
+                              ? "border-primary bg-white ring-1 ring-primary font-bold"
+                              : "border-gray-200 hover:border-primary font-normal"
+                          }`}
+                        >
+                          {sizeStr}
+                          {inStock && <span className="absolute top-1 left-1 w-1.5 h-1.5 bg-[#2DB36F] rounded-full"></span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-sm text-black font-medium">Didn&apos;t get the size right? We&apos;ll exchange it.</p>  
+                  </>
+                )}              
+                  {activeVariant?.inStock ? (
+                    <div className="bg-[#ECF7F2] border border-[#B3E1CD] text-black  rounded-lg px-4 py-3 flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 bg-[#189351] rounded-full"></span>
+                      This combination is <span className="font-semibold">in-stock & ready to ship in 24 hrs</span>
+                    </div>
+                  ) : (
+                    <div className="bg-amber-50 border border-amber-200 text-black rounded-lg px-4 py-3 flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 bg-amber-500 rounded-full"></span>
+                      This combination will be <span className="font-semibold">made to order (dispatched in 10-15 days)</span>
+                    </div>
+                  )}
                 </div>
-                <p className="text-sm text-black font-medium">Didn&apos;t get the size right? We&apos;ll exchange it.</p>                
-                {activeVariant?.inStock ? (
-                  <div className="bg-[#ECF7F2] border border-[#B3E1CD] text-black  rounded-lg px-4 py-3 flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 bg-[#189351] rounded-full"></span>
-                    This combination is <span className="font-semibold">in-stock & ready to ship in 24 hrs</span>
-                  </div>
-                ) : (
-                  <div className="bg-amber-50 border border-amber-200 text-black rounded-lg px-4 py-3 flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 bg-amber-500 rounded-full"></span>
-                    This combination will be <span className="font-semibold">made to order (dispatched in 10-15 days)</span>
-                  </div>
-                )}
-              </div>
+              
               <Separator />
             </div>
 
@@ -727,7 +732,7 @@ export default function ProductPageClient({ product }) {
             
             <ProductAccordion/>
             {/* Wear This With Slider */}
-            <WearThisWith />
+            {complementaryProducts.length > 0 && <WearThisWith products={complementaryProducts} />}
 
           </div>
         </div>
