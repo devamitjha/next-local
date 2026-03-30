@@ -84,7 +84,16 @@ export async function POST() {
                       edges {
                         node {
                           mediaContentType
+                          alt
                           ... on MediaImage { image { url altText } }
+                          ... on Video {
+                            sources { url format mimeType }
+                            preview { image { url } }
+                          }
+                          ... on ExternalVideo {
+                            embeddedUrl
+                            preview { image { url } }
+                          }
                         }
                       }
                     }
@@ -101,11 +110,44 @@ export async function POST() {
           });
 
           const result = await response.json();
+          
+          if (result.errors) {
+            console.error("Shopify GraphQL Errors:", JSON.stringify(result.errors, null, 2));
+            throw new Error(`Shopify API Error: ${result.errors[0].message}`);
+          }
+
           const products = result.data?.products?.edges || [];
 
           if (products.length > 0) {
             const mapped = await Promise.all(products.map(async edge => {
               const p = edge.node;
+              
+              const media = p.media.edges.map(({ node: m }) => {
+                const type = m.mediaContentType;
+                let url = "";
+                let preview = "";
+                let sources = [];
+
+                if (type === "IMAGE") {
+                  url = m.image?.url;
+                } else if (type === "VIDEO") {
+                  url = m.sources?.[0]?.url;
+                  preview = m.preview?.image?.url;
+                  sources = m.sources;
+                } else if (type === "EXTERNAL_VIDEO") {
+                  url = m.embeddedUrl;
+                  preview = m.preview?.image?.url;
+                }
+
+                return {
+                  type,
+                  url,
+                  preview,
+                  alt: m.alt || "",
+                  sources
+                };
+              });
+
               const variants = p.variants.edges.map(({ node: v }) => {
                 const options = {};
                 v.selectedOptions.forEach(o => { options[o.name.toLowerCase()] = o.value; });
@@ -135,10 +177,6 @@ export async function POST() {
                 };
               });
 
-              const images = p.media.edges
-                .filter(m => m.node.mediaContentType === "IMAGE")
-                .map(m => ({ url: m.node.image.url, alt: m.node.image.altText || "" }));
-
               const firstVar = variants[0];
               const reviewsData = await fetchNectorReviews(p.id);
 
@@ -163,8 +201,9 @@ export async function POST() {
                 status: p.status,
                 tags: p.tags,
                 createdAt: p.createdAt,
-                image: p.featuredImage?.url || (images.length > 0 ? images[0].url : null),
-                images: images,
+                image: p.featuredImage?.url || (media.find(m => m.type === "IMAGE")?.url || null),
+                images: media.filter(m => m.type === "IMAGE").map(m => ({ url: m.url, alt: m.alt })),
+                media: media,
                 price: firstVar?.price || 0,
                 compare_price: firstVar?.compare_price || null,
                 selectedColor: firstVar?.color,

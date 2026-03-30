@@ -6,12 +6,26 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import "swiper/css/navigation";
 import { Navigation } from "swiper/modules";
-import { Star, ChevronLeft, ChevronRight, ArrowRight, Copy, X, Loader2 } from "lucide-react";
+import { Star, ChevronLeft, ChevronRight, ArrowRight, Copy, X, Loader2, Play } from "lucide-react";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 
 const colorMap = {
   yellow: "#E2C07E",
   rose: "#E9B4AB",
   white: "#E5E4E2",
+};
+
+// Force en-IN formatting to be consistent across environments
+const formatPrice = (num) => {
+  if (num === null || num === undefined) return "0";
+  return new Intl.NumberFormat("en-IN").format(num);
 };
 
 function getBaseColor(color = "") {
@@ -33,6 +47,13 @@ function getUniqueBaseColors(colors = []) {
 }
 
 function getVariantForBase(product, selectedBase) {
+  // 1. Prefer in-stock variant for the selected base
+  const inStockVariant = product?.variants?.find(
+    (v) => v.inStock && getBaseColor(v.color || v.title) === selectedBase
+  );
+  if (inStockVariant) return inStockVariant;
+
+  // 2. Fallback to any variant for the selected base
   return (
     product?.variants?.find((variant) => getBaseColor(variant.color || variant.title) === selectedBase) ||
     product?.variants?.[0] ||
@@ -65,13 +86,25 @@ function getImagesForBase(product, selectedBase) {
 
 export default function ProductCard({ product }) {
   const baseColors = getUniqueBaseColors(product.colors || product.variants?.map((v) => v.color) || []);
-  const [activeBase, setActiveBase] = useState(
-    getBaseColor(product.selectedColor || baseColors[0] || "white")
-  );
+  
+  // Find first in-stock variant to set as initial active base
+  const firstInStockVariant = product.variants?.find(v => v.inStock);
+  const initialBase = firstInStockVariant 
+    ? getBaseColor(firstInStockVariant.color || firstInStockVariant.title)
+    : getBaseColor(product.selectedColor || baseColors[0] || "white");
+
+  const [activeBase, setActiveBase] = useState(initialBase);
 
   const [showSimilar, setShowSimilar] = useState(false);
   const [similarProducts, setSimilarProducts] = useState([]);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
+  const [showVideoPopup, setShowVideoPopup] = useState(false);
+
+  const currentVariant = getVariantForBase(product, activeBase);
+  const displayPrice = currentVariant ? currentVariant.price : product.price;
+  const displayComparePrice = currentVariant ? (currentVariant.compare_price || currentVariant.compareAtPrice) : product.compare_price;
+
+  const videoMedia = product.media?.find(m => m.type === "VIDEO" || m.type === "EXTERNAL_VIDEO");
 
   const galleryImages = getImagesForBase(product, activeBase);
   const swiperId = `card-swiper-${String(product.shopifyId || product.id || product.handle).replace(/[^a-zA-Z0-9]/g, "")}`;
@@ -97,13 +130,13 @@ export default function ProductCard({ product }) {
 
   // Prevent body scroll when drawer is open
   useEffect(() => {
-    if (showSimilar) {
+    if (showSimilar || showVideoPopup) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
     }
     return () => { document.body.style.overflow = "unset"; };
-  }, [showSimilar]);
+  }, [showSimilar, showVideoPopup]);
 
   return (
     <>
@@ -142,16 +175,91 @@ export default function ProductCard({ product }) {
               )}
             </Link>
 
+            {/* Video Play Button */}
+            {videoMedia && (
+              <button 
+                onClick={(e) => { e.preventDefault(); setShowVideoPopup(true); }}
+                className="absolute bottom-4 left-4 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-white/90 backdrop-blur-sm border border-zinc-200 text-zinc-900 shadow-sm hover:bg-black hover:text-white transition-all duration-300"
+              >
+                <Play size={16} fill="currentColor" />
+              </button>
+            )}
+
             {/* View Similar Button */}
-            <button 
-              onClick={(e) => { e.preventDefault(); fetchSimilar(); }}
-              className="absolute bottom-4 right-4 z-10 flex items-center gap-0 hover:gap-2 px-3 hover:px-4 py-2 bg-white/90 backdrop-blur-sm border border-zinc-200 rounded-full text-zinc-900 shadow-sm hover:bg-black hover:text-white transition-all duration-500 group/btn overflow-hidden"
-            >
-              <span className="max-w-0 opacity-0 group-hover/btn:max-w-[100px] group-hover/btn:opacity-100 transition-all duration-500 ease-in-out text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">
-                View Similar
-              </span>
-              <Copy size={16} className="shrink-0" />
-            </button>
+            <Drawer open={showSimilar} onOpenChange={setShowSimilar}>
+              <DrawerTrigger asChild>
+                <button 
+                  onClick={(e) => { e.preventDefault(); fetchSimilar(); }}
+                  className="absolute bottom-4 right-4 z-10 flex items-center gap-0 hover:gap-2 px-3 hover:px-4 py-2 bg-white/90 backdrop-blur-sm border border-zinc-200 rounded-full text-zinc-900 shadow-sm hover:bg-black hover:text-white transition-all duration-500 group/btn overflow-hidden"
+                >
+                  <span className="max-w-0 opacity-0 group-hover/btn:max-w-[100px] group-hover/btn:opacity-100 transition-all duration-500 ease-in-out text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">
+                    View Similar
+                  </span>
+                  <Copy size={16} className="shrink-0" />
+                </button>
+              </DrawerTrigger>
+              <DrawerContent className="max-h-[90vh] h-[90vh] bg-white rounded-t-[20px] flex flex-col">
+                <div className="mx-auto w-full max-w-7xl flex flex-col h-full overflow-hidden">
+                  <DrawerHeader className="px-10 pt-10 flex flex-row items-center justify-between border-b border-zinc-100 pb-6 !text-left !flex-row shrink-0">
+                    <DrawerTitle className="text-[15px] font-medium tracking-[0.2em] text-black uppercase">VIEW SIMILAR</DrawerTitle>
+                    <DrawerClose asChild>
+                      <button className="text-zinc-400 hover:text-black transition-colors hover:cursor-pointer p-1">
+                        <X size={22} strokeWidth={1.5} />
+                      </button>
+                    </DrawerClose>
+                  </DrawerHeader>
+                  
+                  <div className="px-10 py-10 overflow-y-auto flex-1">
+                    {loadingSimilar ? (
+                      <div className="flex flex-col items-center justify-center py-20 gap-4 w-full">
+                        <Loader2 className="animate-spin text-zinc-400" size={40} />
+                        <p className="text-sm font-bold uppercase tracking-widest text-zinc-400">Searching matching designs...</p>
+                      </div>
+                    ) : similarProducts.length > 0 ? (
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-x-8 gap-y-12 pb-10">
+                        {similarProducts.slice(0, 10).map((item) => (
+                          <div key={item.id} className="space-y-4">
+                            <Link href={`/products/${item.handle}`} onClick={() => setShowSimilar(false)} className="block space-y-4 group">
+                              <div className="aspect-square relative rounded-md bg-[#F9F9F9] overflow-hidden transition-all duration-300 group-hover:bg-[#f3f3f3]">
+                                <img
+                                  src={item.image}
+                                  alt={item.title}
+                                  className="w-full h-full object-contain p-4 mix-blend-multiply transition-transform duration-500 group-hover:scale-105"
+                                />
+                              </div>
+                              <div className="space-y-2 px-0">
+                                <h4 className="text-[13px] font-normal text-zinc-900 line-clamp-1 leading-relaxed tracking-tight">{item.title}</h4>
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-[14px] font-bold text-black tracking-tight">₹{formatPrice(item.price)}</p>
+                                    {(item.compare_price || item.compareAtPrice) > item.price && (
+                                      <p className="text-[12px] text-zinc-400 line-through font-medium">₹{formatPrice(item.compare_price || item.compareAtPrice)}</p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1 group/link">
+                                    <span className="text-[10px] font-bold text-zinc-900 uppercase tracking-widest border-b border-zinc-200 pb-0.5 group-hover/link:border-black transition-colors">
+                                      VIEW DETAILS
+                                    </span>
+                                    <ChevronRight size={10} className="text-zinc-900" />
+                                  </div>
+                                </div>
+                              </div>
+                            </Link>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-20 text-center gap-4 w-full">
+                        <div className="w-16 h-16 bg-zinc-50 rounded-full flex items-center justify-center">
+                          <Copy className="text-zinc-300" size={30} />
+                        </div>
+                        <p className="font-bold text-zinc-500 uppercase tracking-widest text-sm">No similar items found for this design.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </DrawerContent>
+            </Drawer>
 
             {galleryImages.length > 1 && (
               <>
@@ -198,9 +306,9 @@ export default function ProductCard({ product }) {
             )}
 
             <div className="flex items-center gap-2">
-              <p className="text-sm font-bold">Rs. {product.price}</p>
-              {product.compare_price && (
-                <p className="text-xs text-zinc-400 line-through">Rs. {product.compare_price}</p>
+              <p className="text-sm font-bold">Rs. {formatPrice(displayPrice)}</p>
+              {displayComparePrice && (
+                <p className="text-xs text-zinc-400 line-through">Rs. {formatPrice(displayComparePrice)}</p>
               )}
             </div>
           </div>
@@ -234,71 +342,49 @@ export default function ProductCard({ product }) {
         )}
       </div>
 
-      {/* Similar Products Bottom Sheet */}
-      {showSimilar && (
-        <div className="fixed inset-0 z-[100] flex flex-col justify-end">
+      {/* Video Popup Modal */}
+      {showVideoPopup && videoMedia && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
           {/* Backdrop */}
           <div 
-            className="absolute inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity"
-            onClick={() => setShowSimilar(false)}
+            className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity"
+            onClick={() => setShowVideoPopup(false)}
           />
           
-          {/* Drawer Content */}
-          <div className="relative w-full bg-white dark:bg-zinc-950 rounded-t-[2.5rem] shadow-2xl max-h-[85vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-500">
-            {/* Handle */}
-            <div className="w-12 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full mx-auto mt-4 mb-2 shrink-0" />
+          {/* Video Container */}
+          <div className="relative w-full max-w-2xl aspect-square bg-black rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+            <button 
+              onClick={() => setShowVideoPopup(false)}
+              className="absolute top-4 right-4 z-20 p-2 bg-black/50 hover:bg-black text-white rounded-full transition-all duration-300 shadow-lg border border-white/10"
+            >
+              <X size={24} />
+            </button>
             
-            <div className="px-8 py-4 border-b border-zinc-100 dark:border-zinc-900 flex items-center justify-between shrink-0">
-              <h2 className="text-xl font-black uppercase tracking-tight">View Similar</h2>
-              <button 
-                onClick={() => setShowSimilar(false)}
-                className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-8">
-              {loadingSimilar ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-4">
-                  <Loader2 className="animate-spin text-zinc-400" size={40} />
-                  <p className="text-sm font-bold uppercase tracking-widest text-zinc-400">Searching matching designs...</p>
-                </div>
-              ) : similarProducts.length > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-                  {similarProducts.map((item) => (
-                    <div key={item.id} className="space-y-4 group">
-                      <Link href={`/products/${item.handle}`} onClick={() => setShowSimilar(false)} className="block space-y-4">
-                        <div className="aspect-square relative rounded-3xl border border-zinc-100 dark:border-zinc-900 overflow-hidden bg-white dark:bg-zinc-950 transition-transform duration-500 group-hover:scale-[1.02]">
-                          <img
-                            src={item.image}
-                            alt={item.title}
-                            className="w-full h-full object-contain p-4"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-400">{item.vendor}</p>
-                          <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">{item.title}</h4>
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-black">Rs. {item.price}</p>
-                            <span className="text-[10px] font-bold text-zinc-400 flex items-center gap-1">
-                              View Details <ArrowRight size={10} />
-                            </span>
-                          </div>
-                        </div>
-                      </Link>
-                    </div>
+            <video 
+              autoPlay 
+              muted 
+              loop 
+              playsInline
+              controlsList="nodownload"
+              onContextMenu={(e) => e.preventDefault()}
+              disablePictureInPicture
+              className="w-full h-full object-contain"
+              poster={videoMedia.preview}
+            >
+              {videoMedia.sources && videoMedia.sources.length > 0 ? (
+                <>
+                  {videoMedia.sources.filter(s => s.format === 'mp4').map((source, sIdx) => (
+                    <source key={sIdx} src={source.url} type={source.mimeType} />
                   ))}
-                </div>
+                  {videoMedia.sources.filter(s => s.format !== 'mp4').map((source, sIdx) => (
+                    <source key={sIdx} src={source.url} type={source.mimeType} />
+                  ))}
+                </>
               ) : (
-                <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
-                  <div className="w-16 h-16 bg-zinc-50 dark:bg-zinc-900 rounded-full flex items-center justify-center">
-                    <Copy className="text-zinc-300" size={30} />
-                  </div>
-                  <p className="font-bold text-zinc-500 uppercase tracking-widest text-sm">No similar items found for this design.</p>
-                </div>
+                <source src={videoMedia.url} type={videoMedia.mimeType || "video/mp4"} />
               )}
-            </div>
+              Your browser does not support the video tag.
+            </video>
           </div>
         </div>
       )}
