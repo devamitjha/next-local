@@ -69,6 +69,12 @@ export async function GET(request) {
 
     const products = await productsCollection
       .find(filter)
+      .project({
+        description: 0,
+        "reviews.list": 0,
+        tags: 0,
+        productMetafields: 0,
+      })
       .sort({ type: 1, title: 1 })
       .skip((page - 1) * limit)
       .limit(limit)

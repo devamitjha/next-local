@@ -3,97 +3,8 @@
 import { useState, useEffect, useCallback, use } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Swiper, SwiperSlide } from "swiper/react";
-import "swiper/css";
-import "swiper/css/navigation";
-import { Navigation } from "swiper/modules";
-import { LayoutDashboard, ShoppingBag, ArrowRight, Search, Star, Filter, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-
-const colorMap = {
-  yellow: "#E2C07E",
-  rose: "#E9B4AB",
-  white: "#E5E4E2",
-};
-
-function getBaseColor(color = "") {
-  const normalized = String(color).toLowerCase();
-
-  if (normalized.includes("rose")) return "rose";
-  if (normalized.includes("white") || normalized.includes("silver") || normalized.includes("platinum")) return "white";
-  if (normalized.includes("yellow") || normalized.includes("gold")) return "yellow";
-
-  return "white";
-}
-
-function getUniqueBaseColors(colors = []) {
-  const order = ["white", "yellow", "rose"];
-  const availableBaseColors = new Set();
-
-  colors.forEach((color) => {
-    const base = getBaseColor(color);
-    if (base) availableBaseColors.add(base);
-  });
-
-  return order.filter((color) => availableBaseColors.has(color));
-}
-
-function getSelectedBaseColor(product, selectedColor) {
-  return getBaseColor(selectedColor || product?.selectedColor || "white");
-}
-
-function getVariantForBase(product, selectedBase) {
-  return (
-    product?.variants?.find((variant) => getBaseColor(variant.color || variant.title) === selectedBase) ||
-    product?.variants?.[0] ||
-    null
-  );
-}
-
-function getProductImageForBase(product, selectedBase) {
-  const variant = getVariantForBase(product, selectedBase);
-
-  if (!product?.images?.length) {
-    return variant?.image || product?.image || null;
-  }
-
-  const variantColor = String(variant?.color || variant?.title || "").toLowerCase();
-  if (variantColor) {
-    const exactMatch = product.images.find((image) => String(image.alt || "").toLowerCase().includes(variantColor));
-    if (exactMatch) return exactMatch.url;
-  }
-
-  if (selectedBase) {
-    const baseMatch = product.images.find((image) => String(image.alt || "").toLowerCase().includes(selectedBase));
-    if (baseMatch) return baseMatch.url;
-  }
-
-  return variant?.image || product?.image || product.images?.[0]?.url || null;
-}
-
-function getImagesForBase(product, selectedBase) {
-  if (!product?.images?.length) {
-    const fallbackImage = getProductImageForBase(product, selectedBase);
-    return fallbackImage ? [{ url: fallbackImage, alt: product?.title || "Product image" }] : [];
-  }
-
-  const variant = getVariantForBase(product, selectedBase);
-  const variantColor = String(variant?.color || variant?.title || "").toLowerCase();
-
-  if (variantColor) {
-    const exactMatches = product.images.filter((image) => String(image.alt || "").toLowerCase().includes(variantColor));
-    if (exactMatches.length > 0) return exactMatches;
-  }
-
-  if (selectedBase) {
-    const baseMatches = product.images.filter((image) => String(image.alt || "").toLowerCase().includes(selectedBase));
-    if (baseMatches.length > 0) return baseMatches;
-  }
-
-  const fallbackImage = getProductImageForBase(product, selectedBase);
-  if (fallbackImage) return [{ url: fallbackImage, alt: product?.title || "Product image" }];
-
-  return [];
-}
+import { LayoutDashboard, ShoppingBag, Search, Filter, ChevronDown } from "lucide-react";
+import ProductCard from "@/components/product/ProductCard";
 
 export default function CollectionPage({ params }) {
   const { handle } = use(params);
@@ -107,7 +18,6 @@ export default function CollectionPage({ params }) {
   const [pagination, setPagination] = useState({ page: 1, limit: 12, total: 0, totalPages: 0 });
   const [loading, setLoading] = useState(true);
   const [availableFilters, setAvailableFilters] = useState({});
-  const [selectedColors, setSelectedColors] = useState({});
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [expandedFilters, setExpandedFilters] = useState({ "In Store Available": true, "Price": true, "Product Category": true });
 
@@ -147,19 +57,6 @@ export default function CollectionPage({ params }) {
     fetchFilters();
     fetchProducts();
   }, [fetchFilters, fetchProducts]);
-
-  useEffect(() => {
-    setSelectedColors((prev) => {
-      const next = {};
-
-      for (const product of products) {
-        const baseColors = getUniqueBaseColors(product.colors || product.variants?.map((variant) => variant.color) || []);
-        next[product.shopifyId] = prev[product.shopifyId] || getBaseColor(product.selectedColor || baseColors[0] || "white");
-      }
-
-      return next;
-    });
-  }, [products]);
 
   const toggleFilter = (urlKey, value) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -272,126 +169,9 @@ export default function CollectionPage({ params }) {
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
-                  {products.map((product) => {
-                    const baseColors = getUniqueBaseColors(product.colors || product.variants?.map((variant) => variant.color) || []);
-                    const activeBase = selectedColors[product.shopifyId] || getSelectedBaseColor(product);
-                    const galleryImages = getImagesForBase(product, activeBase);
-                    const swiperId = `collection-swiper-${String(product.shopifyId || product.id || product.handle).replace(/[^a-zA-Z0-9]/g, "")}`;
-
-                    return (
-                      <div key={product.shopifyId} className="space-y-4">
-                        <Link href={`/products/${product.handle}`} className="group block space-y-4">
-                          <div className="aspect-[4/5] relative rounded-[2rem] border border-zinc-100 dark:border-zinc-900 overflow-hidden bg-white dark:bg-zinc-950 transition-transform duration-500 group-hover:scale-[1.02]">
-                            {galleryImages.length > 0 ? (
-                              <Swiper
-                                spaceBetween={0}
-                                loop={galleryImages.length > 1}
-                                slidesPerView={1}
-                                modules={[Navigation]}
-                                navigation={
-                                  galleryImages.length > 1
-                                    ? {
-                                        prevEl: `.custom-prev-${swiperId}`,
-                                        nextEl: `.custom-next-${swiperId}`,
-                                      }
-                                    : false
-                                }
-                                className="w-full h-full"
-                              >
-                                {galleryImages.map((image, index) => (
-                                  <SwiperSlide key={`${image.url}-${index}`}>
-                                    <img
-                                      src={image.url}
-                                      alt={image.alt || `${product.title}${activeBase ? ` - ${activeBase}` : ""}`}
-                                      className="w-full h-full object-contain p-6 grayscale-[0.2] group-hover:grayscale-0 transition-all"
-                                    />
-                                  </SwiperSlide>
-                                ))}
-                              </Swiper>
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-zinc-400">No Image</div>
-                            )}
-                            {galleryImages.length > 1 && (
-                              <>
-                                <button
-                                  type="button"
-                                  aria-label="Previous image"
-                                  className={`custom-prev-${swiperId} absolute left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-white/85 text-black shadow-md opacity-0 group-hover:opacity-100 transition-opacity`}
-                                >
-                                  <ChevronLeft size={18} />
-                                </button>
-                                <button
-                                  type="button"
-                                  aria-label="Next image"
-                                  className={`custom-next-${swiperId} absolute right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-white/85 text-black shadow-md opacity-0 group-hover:opacity-100 transition-opacity`}
-                                >
-                                  <ChevronRight size={18} />
-                                </button>
-                              </>
-                            )}
-                            <div className="absolute bottom-4 right-4 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
-                              <div className="bg-black text-white p-3 rounded-full shadow-xl"><ArrowRight size={20} /></div>
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">{product.vendor}</p>
-                            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 group-hover:underline underline-offset-4 decoration-2">{product.title}</h3>
-                            {product.reviews?.count > 0 && (
-                              <div className="flex items-center gap-1">
-                                <div className="flex text-amber-400">
-                                  {[...Array(5)].map((_, i) => (
-                                    <Star key={i} size={12} fill={i < Math.floor(product.reviews.average) ? "currentColor" : "none"} className={i < Math.floor(product.reviews.average) ? "" : "text-zinc-200 dark:text-zinc-800"} />
-                                  ))}
-                                </div>
-                                <span className="text-[10px] font-bold text-zinc-400">({product.reviews.count})</span>
-                              </div>
-                            )}
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-bold">Rs. {product.price}</p>
-                              {product.compare_price && <p className="text-xs text-zinc-400 line-through">Rs. {product.compare_price}</p>}
-                            </div>
-                          </div>
-                        </Link>
-                        {baseColors.length > 0 && (
-                          <div className="space-y-2">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
-                              Color{activeBase ? `: ${activeBase}` : ""}
-                            </p>
-                            <div className="flex flex-wrap items-center gap-2">
-                              {baseColors.map((base) => {
-                                const isActive = base === activeBase;
-
-                                return (
-                                  <button
-                                    key={`${product.shopifyId}-${base}`}
-                                    type="button"
-                                    title={base}
-                                    aria-label={`Show ${base} color`}
-                                    onClick={() => {
-                                      setSelectedColors((prev) => ({
-                                        ...prev,
-                                        [product.shopifyId]: base,
-                                      }));
-                                    }}
-                                    className={`w-7 h-7 rounded-full border transition-all flex items-center justify-center hover:scale-110 ${
-                                      isActive
-                                        ? "border-black dark:border-white p-0.5"
-                                        : "border-transparent"
-                                    }`}
-                                  >
-                                    <span
-                                      className="w-full h-full rounded-full border border-zinc-200 dark:border-zinc-700"
-                                      style={{ backgroundColor: colorMap[base] }}
-                                    />
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {products.map((product) => (
+                    <ProductCard key={product.shopifyId} product={product} />
+                  ))}
                 </div>
                 {pagination.totalPages > 1 && (
                   <div className="flex justify-center items-center gap-4 pt-12 border-t border-zinc-100 dark:border-zinc-800">
