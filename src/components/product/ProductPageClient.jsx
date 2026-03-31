@@ -71,14 +71,29 @@ export default function ProductPageClient({ product, complementaryProducts = [] 
   const [activeKarat, setActiveKarat] = useState(initialKarat);
   const [selectedSize, setSelectedSize] = useState(initialSize);
   const [activeVariant, setActiveVariant] = useState(initialVariant);
+  const [priceBreakup, setPriceBreakup] = useState(null);
 
   // Update active variant when selection changes
-  useState(() => {
+  useEffect(() => {
     const variant = product.variants?.find(v => 
       v.color === `${activeKarat} ${activeColor}` && v.size === selectedSize
     );
     if (variant) setActiveVariant(variant);
   }, [activeColor, activeKarat, selectedSize, product.variants]);
+
+  // Fetch variant pricing when active variant changes
+  useEffect(() => {
+    if (!activeVariant?.id) return;
+
+    fetch(`/api/product-pricing?variantId=${activeVariant.id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setPriceBreakup(data.price_breakup);
+      })
+      .catch((err) => {
+        console.error("Pricing fetch failed", err);
+      });
+  }, [activeVariant]);
 
   // Toast notification on price update
   useEffect(() => {
@@ -634,45 +649,76 @@ export default function ProductPageClient({ product, complementaryProducts = [] 
 
             {/* Product Details Section */}
             <div className="space-y-4 mt-4">
-              <h2 className="text-base font-semibold tracking-tight">Product Details:</h2>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-base font-semibold tracking-tight uppercase tracking-wider">Product Details:</h2>
+                {activeVariant?.sku && (
+                  <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                    <span className="text-xs font-bold text-gray-500 tracking-tight">SKU: {activeVariant.sku}</span>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(activeVariant.sku);
+                        toast.success("SKU Copied!", { position: "bottom-center", autoClose: 1000, hideProgressBar: true });
+                      }}
+                      className="p-1 hover:bg-white rounded transition-colors"
+                    >
+                      <Copy size={12} className="text-gray-400" />
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-4">
                 {/* Metal & Dimensions */}
                 <div className="flex gap-3 relative justify-between">
                   {/* Metal */}
-                  <div className="w-[48%] border-r">
-                    <div className="flex items-center gap-2 font-semibold text-sm mb-2 uppercase tracking-wide">
+                  <div className="w-[48%] border-r border-gray-200">
+                    <div className="flex items-center gap-2 font-semibold text-sm mb-3 uppercase tracking-wide">
                       <Image src="/images/icons/metal.svg" alt="" width={18} height={18} />
                       Metal
                     </div>
-                    <div className="flex items-center gap-4.5 pr-2">
-                      <div className="w-20 h-20 bg-white rounded-lg border border-gray-100 flex items-center justify-center p-2 shadow-sm">
-                        <Image src="/images/product/try.jpg" alt="Metal" width={80} height={80} className="object-contain" />
+                    <div className="flex items-start gap-3.5 pr-2">
+                      <div className="w-16 h-16 bg-white rounded-lg border border-gray-100 flex items-center justify-center p-2 shadow-sm shrink-0">
+                        <Image src="/images/product/try.jpg" alt="Metal" width={60} height={60} className="object-contain" />
                       </div>
-                      <div className="space-y-3">
-                        <p className="text-sm  leading-none">14KT Yellow Gold</p>
-                        <p className="text-sm leading-none">Net Wt: <span className="font-medium">2.079 g</span></p>
+                      <div className="space-y-1.5 pt-1">
+                        <p className="text-sm font-medium leading-none">
+                          <span className="text-gray-400 font-normal">Carat:</span> {activeVariant?.metafields?.metal_purity || activeKarat}
+                        </p>
+                        <p className="text-sm font-medium leading-none">
+                          <span className="text-gray-400 font-normal">Color:</span> {activeVariant?.metafields?.metal_color || activeColor.split(' ')[0]}
+                        </p>
+                        <p className="text-sm font-medium leading-none">
+                          <span className="text-gray-400 font-normal">Net Wt:</span> {activeVariant?.metafields?.metal_weight || "2.07"} g
+                        </p>
                       </div>
                     </div>
                   </div>
                   {/* Dimensions */}
                   <div className="w-[48%] pl-2">
-                    <div className="flex items-center gap-2 font-semibold text-sm mb-2 uppercase tracking-wide">
+                    <div className="flex items-center gap-2 font-semibold text-sm mb-3 uppercase tracking-wide">
                       <Image src="/images/icons/dimension.svg" alt="" width={18} height={18} />
                       Dimensions
                     </div>
-                    <div className="flex items-center gap-4.5">
-                      <div className="w-20 h-20 bg-white rounded-lg border border-gray-100 flex items-center justify-center p-2 shadow-sm">
-                        <Image src="/images/product/try.jpg" alt="Metal" width={80} height={80} className="object-contain" />
+                    <div className="flex items-start gap-3.5">
+                      <div className="w-16 h-16 bg-white rounded-lg border border-gray-100 flex items-center justify-center p-2 shadow-sm shrink-0">
+                        <Image src="/images/product/try.jpg" alt="Metal" width={60} height={60} className="object-contain" />
                       </div>
-                      <div className="space-y-3">
-                        <p className="text-sm  leading-none">Height: <span className="font-medium ml-2">7.1 mm</span></p>
-                        <p className="text-sm  leading-none">Width: <span className="font-medium ml-2">8 mm</span></p>
-                        <p className="text-sm  leading-none">Gross Wt: <span className="font-medium ml-2">2.58 g</span></p>
+                      <div className="space-y-1.5 pt-1">
+                        <p className="text-sm font-medium leading-none">
+                          <span className="text-gray-400 font-normal">Height:</span> {activeVariant?.metafields?.top_height || "7.1"} mm
+                        </p>
+                        <p className="text-sm font-medium leading-none">
+                          <span className="text-gray-400 font-normal">Width:</span> {activeVariant?.metafields?.top_width || "8.0"} mm
+                        </p>
+                        <p className="text-sm font-medium leading-none">
+                          <span className="text-gray-400 font-normal">Gross Wt:</span> {activeVariant?.metafields?.gross_weight || "2.58"} g
+                        </p>
                       </div>
                     </div>
                   </div>
                 </div>
-                <Separator/>
+                
+                <Separator className="bg-gray-200" />
+                
                 {/* Diamond Section */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wide">
@@ -680,30 +726,81 @@ export default function ProductPageClient({ product, complementaryProducts = [] 
                     Diamond
                   </div>
                   
-                  <div className="bg-[#EDEDED] rounded-md px-4 py-2 flex items-center gap-2.5 w-fit">
-                    <div className="w-5 h-5 rounded-full bg-gray-500 flex items-center justify-center text-12px text-white font-semibold">i</div>
-                    <span className="text-12px">Clarity & Color: <span className="font-medium">VVS-VS, EF</span></span>
-                  </div>
-
-                  <div className="flex divide-x divide-gray-200">
-                    {[ 
-                      { img: "/images/product/1.jpg", shape: "Round", pcs: "1", carat: "2.00ct" },
-                      { img: "/images/product/2.jpg", shape: "Round", pcs: "4", carat: "0.048ct" },
-                      { img: "/images/product/3.jpg", shape: "Marquise", pcs: "4", carat: "0.48ct" }
-                    ].map((d, i) => (
-                      <DiamondDetail key={i} {...d} index={i} />
-                    ))}
-                  </div>
-                  <Separator/>
+                  {activeVariant?.metafields?.diamonds ? (
+                    <div className="flex divide-x divide-gray-200">
+                      {activeVariant.metafields.diamonds.map((d, i) => (
+                        <div key={i} className="flex-1 ps-6 pe-6 first:ps-0 last:pe-0 flex flex-col items-start">
+                          <div className="flex justify-start w-full mb-4">
+                            <div className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center overflow-hidden bg-white shadow-sm p-1">
+                              <Image src={`/images/product/${(i % 3) + 1}.jpg`} alt={d.shape} width={24} height={24} className="object-cover" />
+                            </div>
+                          </div>
+                          <div className="space-y-1.5 text-xs w-full">
+                            <div className="flex justify-between gap-2"><span className="text-gray-400">Quality:</span><span className="font-semibold text-gray-900">{d.quality || "VVS-VS, EF"}</span></div>
+                            <div className="flex justify-between gap-2"><span className="text-gray-400">Shape:</span><span className="font-semibold text-gray-900">{d.shape}</span></div>
+                            <div className="flex justify-between gap-2"><span className="text-gray-400">Pcs:</span><span className="font-semibold text-gray-900">{d.pieces}</span></div>
+                            <div className="flex justify-between gap-2"><span className="text-gray-400">Carat:</span><span className="font-semibold text-gray-900">{d.weight}ct</span></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="bg-[#EDEDED] rounded-md px-4 py-2 flex items-center gap-2.5 w-fit">
+                        <div className="w-5 h-5 rounded-full bg-gray-500 flex items-center justify-center text-[10px] text-white font-semibold">i</div>
+                        <span className="text-[11px] font-medium">Clarity & Color: <span className="font-bold">VVS-VS, EF</span></span>
+                      </div>
+                      <div className="flex divide-x divide-gray-200">
+                        {[ 
+                          { img: "/images/product/1.jpg", shape: "Round", pcs: "1", carat: "2.00ct" },
+                          { img: "/images/product/2.jpg", shape: "Round", pcs: "4", carat: "0.048ct" },
+                          { img: "/images/product/3.jpg", shape: "Marquise", pcs: "4", carat: "0.48ct" }
+                        ].map((d, i) => (
+                          <DiamondDetail key={i} {...d} index={i} />
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                <p className="text-12px leading-relaxed">
-                  Our products are handcrafted and personalised for your delight, hence a weight variance is expected.
+                {activeVariant?.metafields?.gemstones && (
+                  <>
+                    <Separator className="bg-gray-200" />
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wide">
+                        <Image src="/images/icons/gemstone.svg" alt="" width={18} height={18} />
+                        Gemstone
+                      </div>
+                      <div className="flex divide-x divide-gray-200">
+                        {activeVariant.metafields.gemstones.map((g, i) => (
+                          <div key={i} className="flex-1 ps-6 pe-6 first:ps-0 last:pe-0 flex flex-col items-start">
+                             <div className="space-y-1.5 text-xs w-full">
+                              <div className="flex justify-between gap-2"><span className="text-gray-400">Color:</span><span className="font-semibold text-gray-900">{g.color}</span></div>
+                              <div className="flex justify-between gap-2"><span className="text-gray-400">Shape:</span><span className="font-semibold text-gray-900">{g.shape}</span></div>
+                              <div className="flex justify-between gap-2"><span className="text-gray-400">Pcs:</span><span className="font-semibold text-gray-900">{g.pieces}</span></div>
+                              <div className="flex justify-between gap-2"><span className="text-gray-400">Carat:</span><span className="font-semibold text-gray-900">{g.weight}ct</span></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <p className="text-[11px] leading-relaxed text-gray-400 italic">
+                  * Our products are handcrafted and personalised for your delight, hence a weight variance is expected.
                 </p>
               </div>
             </div>
 
-            <PriceSavingsDetails/>
+            <PriceSavingsDetails priceBreakup={priceBreakup}/>
+
+            {priceBreakup?.total_savings && priceBreakup.total_savings !== "₹0" && (
+              <div className="mt-4 flex justify-between items-center bg-[#FDF6F6] border border-[#FADEDE] rounded-xl p-5">
+                <span className="text-base font-bold text-gray-900 uppercase tracking-tight">Save on this jewelry</span>
+                <span className="text-lg font-bold text-[#D93025]">{priceBreakup.total_savings}</span>
+              </div>
+            )}
 
             {/* Certification */}
             <div className="pt-6">

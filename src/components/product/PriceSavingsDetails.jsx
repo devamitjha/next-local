@@ -4,27 +4,33 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
 import Image from "next/image";
 
-export default function PriceSavingsDetails() {
+export default function PriceSavingsDetails({ priceBreakup }) {
+  if (!priceBreakup) return null;
+
   return (
     <div className="mt-6">
-      <h2 className="text-base font-semibold tracking-tight mb-4">Price & Savings Details:</h2>
+      <h2 className="text-base font-semibold tracking-tight mb-4 uppercase tracking-wider">Price & Savings Details:</h2>
 
       <div className="bg-gray-50 border border-gray-100 rounded-xl p-5">
         <Tabs defaultValue="price" className="w-full">
-          <TabsList className="grid grid-cols-2 bg-gray-100 p-1 rounded-lg mb-5 w-full h-12!">
+          <TabsList className="grid grid-cols-3 bg-gray-100 p-1 rounded-lg mb-6 w-full h-12!">
             <TabsTrigger 
               value="price" 
-              className="flex items-center justify-center gap-3 text-sm font-semibold data-[state=active]:bg-primary data-[state=active]:text-white rounded-md transition-all h-full hover:cursor-pointer"
+              className="flex items-center justify-center gap-2 text-[13px] font-bold data-[state=active]:bg-primary data-[state=active]:text-white rounded-md transition-all h-full hover:cursor-pointer uppercase tracking-tight"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="8" x2="16" y1="10" y2="10"/><line x1="8" x2="12" y1="14" y2="14"/><line x1="8" x2="10" y1="18" y2="18"/></svg>
               Price Breakup
             </TabsTrigger>
             <TabsTrigger 
               value="savings" 
-              className="flex items-center justify-center gap-3 text-sm font-semibold data-[state=active]:bg-primary data-[state=active]:text-white rounded-md transition-all h-full hover:cursor-pointer"
+              className="flex items-center justify-center gap-2 text-[13px] font-bold data-[state=active]:bg-primary data-[state=active]:text-white rounded-md transition-all h-full hover:cursor-pointer uppercase tracking-tight"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
               Your Savings
+            </TabsTrigger>
+            <TabsTrigger 
+              value="comparison" 
+              className="flex items-center justify-center gap-2 text-[13px] font-bold data-[state=active]:bg-primary data-[state=active]:text-white rounded-md transition-all h-full hover:cursor-pointer uppercase tracking-tight"
+            >
+              Comparison
             </TabsTrigger>
           </TabsList>
 
@@ -34,18 +40,18 @@ export default function PriceSavingsDetails() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-4"
             >
-              <PriceRow label="14K Yellow Gold (₹8,201/g)" value="₹17,049" />
-              <PriceRow 
-                label="E-F, VVS/VS (9 Pcs.)" 
-                value="₹75,840" 
-                oldValue="₹101,120" 
-              />
-              <PriceRow label="Making Charges" value="₹4,158" />
-              <PriceRow label="GST (3%)" value="₹2,911" />
+              {priceBreakup.price?.map((item, index) => (
+                <PriceRow 
+                  key={index} 
+                  label={item.label} 
+                  value={item.value} 
+                  oldValue={item.oldValue} 
+                />
+              ))}
               
-              <div className="flex justify-between items-center">
-                <span className="text-base font-semibold text-black">Grand Total</span>
-                <span className="text-base font-semibold text-black">₹99,959</span>
+              <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                <span className="text-base font-bold text-gray-900 uppercase">Grand Total</span>
+                <span className="text-lg font-bold text-gray-900">{priceBreakup.grand_total}</span>
               </div>
             </motion.div>
           </TabsContent>
@@ -56,13 +62,47 @@ export default function PriceSavingsDetails() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-4"
             >
-              <PriceRow label="Diamond Discount" value="₹25,280" isSaving />
-              <PriceRow label="Lucira Coins" value="₹500" isSaving />
-              <PriceRow label="Festival Offer" value="₹3,200" isSaving />
+              {priceBreakup.savings?.map((item, index) => (
+                <PriceRow 
+                  key={index} 
+                  label={item.label} 
+                  value={item.value} 
+                  isSaving 
+                />
+              ))}
               
-              <div className="flex justify-between items-center">
-                <span className="text-base font-semibold text-black">Total Savings</span>
-                <span className="text-base font-semibold text-[#1E7D4E]">₹28,980</span>
+              <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                <span className="text-base font-bold text-gray-900 uppercase">Total Savings</span>
+                <span className="text-lg font-bold text-[#1E7D4E]">{priceBreakup.total_savings}</span>
+              </div>
+              <div className="bg-[#E3F5E0] rounded-lg p-4 mt-4 flex items-center justify-between">
+                <span className="text-sm font-bold text-gray-900">You are saving a total of</span>
+                <span className="text-base font-bold text-[#1E7D4E]">{priceBreakup.total_savings}</span>
+              </div>
+            </motion.div>
+          </TabsContent>
+
+          <TabsContent value="comparison" className="mt-0 outline-none">
+            <motion.div
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              <div className="grid grid-cols-3 gap-4 border-b border-gray-200 pb-4">
+                <div className="text-xs font-bold text-gray-400 uppercase tracking-widest pt-1">Attributes</div>
+                <div className="text-xs font-bold text-gray-900 uppercase tracking-widest text-center leading-tight">Lucira<br/>Grown</div>
+                <div className="text-xs font-bold text-gray-900 uppercase tracking-widest text-center leading-tight">Mined<br/>Diamond</div>
+              </div>
+
+              <ComparisonRow label="Price" lucira={priceBreakup.comparison?.price?.lucira} mined={priceBreakup.comparison?.price?.mined} isPrice />
+              <ComparisonRow label="Carat" lucira={priceBreakup.comparison?.carat} mined={priceBreakup.comparison?.carat} />
+              <ComparisonRow label="Clarity" lucira={priceBreakup.comparison?.clarity?.lucira} mined={priceBreakup.comparison?.clarity?.mined} />
+              <ComparisonRow label="Color" lucira={priceBreakup.comparison?.color?.lucira} mined={priceBreakup.comparison?.color?.mined} />
+
+              <div className="grid grid-cols-3 gap-4 pt-4 mt-2 bg-[#F0F7F4] -mx-5 px-5 py-4 border-t border-[#D5E6DE]">
+                <div className="text-sm font-bold text-gray-900 uppercase pt-0.5">Total Saving</div>
+                <div className="text-base font-bold text-[#1E7D4E] text-center">{priceBreakup.comparison?.savings}</div>
+                <div className="text-base font-bold text-gray-400 text-center">₹ 0</div>
               </div>
             </motion.div>
           </TabsContent>
@@ -72,15 +112,25 @@ export default function PriceSavingsDetails() {
   );
 }
 
+function ComparisonRow({ label, lucira, mined, isPrice }) {
+  return (
+    <div className="grid grid-cols-3 gap-4 items-center">
+      <div className="text-sm font-semibold text-gray-500">{label}</div>
+      <div className={`text-sm font-bold text-center ${isPrice ? 'text-gray-900' : 'text-gray-900'}`}>{lucira}</div>
+      <div className={`text-sm font-bold text-center ${isPrice ? 'text-gray-900' : 'text-gray-900'}`}>{mined}</div>
+    </div>
+  );
+}
+
 function PriceRow({ label, value, oldValue, isSaving }) {
   return (
-    <div className="flex justify-between items-center text-sm border-b border-gray-200 pb-4">
-      <span className="text-black">{label}</span>
-      <div className="flex items-center gap-4">
+    <div className="flex justify-between items-center text-[13px] border-b border-gray-100 pb-3 last:border-0 last:pb-0">
+      <span className="text-gray-600 font-medium">{label}</span>
+      <div className="flex items-center gap-3">
         {oldValue && (
           <span className="text-gray-300 line-through font-bold">{oldValue}</span>
         )}
-        <span className={`font-semibold ${isSaving ? 'text-[#1E7D4E]' : 'text-black'}`}>{value}</span>
+        <span className={`font-bold ${isSaving ? 'text-[#1E7D4E]' : 'text-gray-900'}`}>{value}</span>
       </div>
     </div>
   );
