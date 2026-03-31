@@ -3,6 +3,7 @@ const reviewCache = new Map();
 export const fetchNectorReviews = async (productId) => {
   if (!productId) return { count: 0, average: 0, list: [], stats: [] };
 
+  // Convert shopify ID to simple ID
   const id = productId.split("/").pop();
 
   if (reviewCache.has(id)) {
@@ -11,7 +12,7 @@ export const fetchNectorReviews = async (productId) => {
 
   try {
     const res = await fetch(
-      `https://platform.nector.io/api/v2/merchant/reviews?reference_product_id=${id}`,
+      `https://cachefront.nector.io/api/v2/merchant/reviews?page=1&limit=10&sort=image_count&sort_op=DESC&reference_product_id=${id}&reference_product_source=shopify`,
       {
         headers: {
           "x-apikey": process.env.NECTOR_API_KEY,
@@ -27,14 +28,10 @@ export const fetchNectorReviews = async (productId) => {
       return { count: 0, average: 0, list: [], stats: [] };
     }
 
-    const data = json?.data || json || {};
+    const data = json?.data || {};
     const stats = data.stats || [];
     const count = data.count || 0;
-    const reviewsList = data.reviews || [];
-
-    if (reviewsList.length === 0 && count > 0) {
-      console.warn(`Nector: count is ${count} but reviews list is empty for ${id}. Check structure:`, JSON.stringify(json).substring(0, 200));
-    }
+    const items = data.items || []; // The API uses 'items'
 
     let total = 0;
     let ratingCount = 0;
@@ -47,21 +44,21 @@ export const fetchNectorReviews = async (productId) => {
     const reviews = {
       count,
       average: ratingCount ? Number((total / ratingCount).toFixed(1)) : 0,
-      stats: stats.map(s => ({ rating: s.rating, count: s.count })),
-      list: reviewsList.map(r => ({
-        id: r.id,
-        name: r.customer_name || "Verified Buyer",
+      stats: stats.map(s => ({ rating: Number(s.rating), count: Number(s.count) })),
+      list: items.map(r => ({
+        id: r._id,
+        name: r.name || "Verified Buyer",
         rating: r.rating,
-        text: r.review_text,
-        date: r.created_at,
-        images: r.images || [],
-        videos: r.videos || [],
-        title: r.review_title
+        text: r.description, // API uses 'description'
+        date: r.posted_at || r.created_at,
+        images: r.uploads?.filter(u => u.type === "image").map(u => u.url) || [],
+        videos: r.uploads?.filter(u => u.type === "video").map(u => u.url) || [],
+        title: r.reference_product_name || ""
       }))
     };
 
     reviewCache.set(id, reviews);
-    setTimeout(() => reviewCache.delete(id), 1 * 60 * 1000);
+    setTimeout(() => reviewCache.delete(id), 5 * 60 * 1000);
 
     return reviews;
   } catch (e) {

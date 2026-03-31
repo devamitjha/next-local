@@ -286,6 +286,9 @@ export async function POST() {
                 };
               });
 
+              // Fetch Nector Reviews for this product
+              const reviewsData = await fetchNectorReviews(p.id);
+
               const mappedProduct = {
                 shopifyId: p.id,
                 title: p.title,
@@ -304,6 +307,7 @@ export async function POST() {
                 selectedColor: variants[0]?.color,
                 colors: [...new Set(variants.map(v => v.color).filter(Boolean))],
                 variants: variants,
+                reviews: reviewsData.count > 0 ? reviewsData : null,
                 collectionHandles: p.collections.edges.map(e => e.node.handle),
                 productMetafields: {
                   shop_for: p.shop_for?.value,

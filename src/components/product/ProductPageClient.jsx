@@ -838,7 +838,7 @@ export default function ProductPageClient({ product, complementaryProducts = [] 
       <ProductStory/>  
       <FeaturedIn/>
       <OurProcess/>
-      <CustomerReviews/>
+      <CustomerReviews reviews={product.reviews} productId={product.shopifyId} />
       <FAQSection/>
       <DiamondComparison/>
       <ProductSlider title="From the Same Collection" subtitle="Discover matching pieces that perfectly complement one another"/>
@@ -853,7 +853,7 @@ export default function ProductPageClient({ product, complementaryProducts = [] 
   );
 }
 
-function DiamondDetail({ img, shape, pcs, carat }) {
+function DiamondDetail({ img, shape, pcs, carat, quality = "VVS-VS, EF" }) {
   return (
     <div className="flex-1 ps-6 pe-6 first:ps-0 last:pe-0 flex flex-col items-start">
       <div className="flex justify-start w-full mb-5">
@@ -862,6 +862,7 @@ function DiamondDetail({ img, shape, pcs, carat }) {
         </div>
       </div>
       <div className="space-y-2 text-12px w-full">
+        <div className="flex justify-between"><span className="w-18">Quality:</span><span className="font-medium">{quality}</span></div>
         <div className="flex justify-between"><span className="w-18">Shape:</span><span className="font-medium">{shape}</span></div>
         <div className="flex justify-between"><span className="w-18">No. of Pcs:</span><span className="font-medium">{pcs}</span></div>
         <div className="flex justify-between"><span className="w-18">Carat:</span><span className="font-medium">{carat}</span></div>
